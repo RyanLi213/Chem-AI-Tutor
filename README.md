@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a study tool that helps students learn and understand organic chemistry structures. Starting with stereochemistry (R/S, E/Z), this tool helps students parse molecules that they provide (hand-drawn or not) and the tool outputs  a validated digital representation. Using deterministic chemistry rules (no LLM calculations), the tool checks for correctness and only uses LLM for explaination and tutoring language. The differentiator vs existing "AI Chemistry Solver" apps is that every answer is backed by a verifiable chemistry engine and the tool teaches students by making them do the reasoning, not just handingg them the answers.
+Build a study tool that helps students learn and understand organic chemistry structures. Starting with stereochemistry (R/S, E/Z), this tool helps students parse molecules that they provide (hand-drawn or not) and the tool outputs  a validated digital representation. Using deterministic chemistry rules (no LLM calculations), the tool checks for correctness and only uses LLM for explaination and tutoring language. The differentiator vs existing "AI Chemistry Solver" apps is that every answer is backed by a verifiable chemistry engine and the tool teaches students by making them do the reasoning, not just handing them the answers.
 
 ## Architecture
 
