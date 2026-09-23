@@ -1,0 +1,66 @@
+[Wrong answer, single stereocenter]
+  grading: {'correct_label': 'S', 'student_answer': 'R', 'is_correct': False}
+  used_fallback: True
+  checks: {'non_empty': True, 'not_truncated': True, 'states_correct_label': True, 'does_not_affirm_wrong_answer': True, 'no_spatial_fabrication': False, 'passed': False}
+  text: Not quite — the correct answer is S.
+raw_response_that_failed: The student's answer was incorrect. The correct configuration is S, determined by the priority order (O > C(O, O) > C(H, H, H) > H) and the geometric fact that a counterclockwise trace (lowest priority group away) defines S. The priority order follows CIP rules, with O's higher atomic number ensuring its precedence over the carbon atoms. The student's choice of R (clockwise) misrepresents the spatial arrangement, while S reflects the correct stereochemistry.
+
+[Correct answer, single stereocenter]
+  grading: {'correct_label': 'S', 'student_answer': 'S', 'is_correct': True}
+  used_fallback: False
+  checks: {'non_empty': True, 'not_truncated': True, 'states_correct_label': True, 'no_spatial_fabrication': True, 'passed': True}
+  text: The student correctly identified the stereochemistry as S. The priority order was established based on atomic numbers, with O outranking C, and the geometric configuration follows CIP rules, indicating a counterclockwise rotation, which defines the S configuration. Well done! 🌟
+
+[Bad atom index (error path, no LLM call)]
+  grading: {'error': 'No stereocenter found at atom index 5'}
+  used_fallback: True
+  text: Couldn't grade that: No stereocenter found at atom index 5
+
+[Achiral molecule, no stereocenter at all]
+  grading: {'error': 'No stereocenter found at atom index 1'}
+  used_fallback: True
+  text: Couldn't grade that: No stereocenter found at atom index 1
+
+[Undefined stereochemistry (no wedge/dash drawn)]
+  grading: {'error': 'No stereocenter found at atom index 1'}
+  used_fallback: True
+  text: Couldn't grade that: No stereocenter found at atom index 1
+
+[Two-stereocenter molecule (threonine), correct answer for center 1]
+  grading: {'correct_label': 'R', 'student_answer': 'R', 'is_correct': True}
+  used_fallback: False
+  checks: {'non_empty': True, 'not_truncated': True, 'states_correct_label': True, 'no_spatial_fabrication': True, 'passed': True}
+  text: The student was correct. The priority order was established based on atomic numbers, with O outranking C, and the geometric fact indicates a clockwise rotation, which is classified as R. The student accurately applied the CIP rules to determine the configuration. Keep up the great work! 🌱
+
+[Two-stereocenter molecule (threonine), wrong answer for center 2]
+  grading: {'correct_label': 'S', 'student_answer': 'R', 'is_correct': False}
+  used_fallback: True
+  checks: {'non_empty': True, 'not_truncated': True, 'states_correct_label': True, 'does_not_affirm_wrong_answer': True, 'no_spatial_fabrication': False, 'passed': False}
+  text: Not quite — the correct answer is S.
+raw_response_that_failed: The student's answer was incorrect. The correct configuration is S, determined by the priority order (N > C > C > H) and the geometric fact that counterclockwise rotation (S) is established with the lowest-priority group away from you. The priority order reflects N's higher atomic number, and the spatial arrangement confirms the S configuration.
+
+[Three-stereocenter molecule (menthol), correct answer for one center]
+  grading: {'correct_label': 'S', 'student_answer': 'S', 'is_correct': True}
+  used_fallback: False
+  checks: {'non_empty': True, 'not_truncated': True, 'states_correct_label': True, 'no_spatial_fabrication': True, 'passed': True}
+  text: The student correctly identified the configuration as S. The priority order was determined using CIP rules, with the top group (C attached to O) outranking the next due to higher atomic number. The geometric fact indicates the configuration is S because the lowest-priority group points away, and the priorities trace counterclockwise. Well done! 🌟
+
+[Tie-break case: all-carbon substituents (3-methylhexane)]
+  grading: {'correct_label': 'R', 'student_answer': 'R', 'is_correct': True}
+  used_fallback: False
+  checks: {'non_empty': True, 'not_truncated': True, 'states_correct_label': True, 'no_spatial_fabrication': True, 'passed': True}
+  text: The student correctly identified the stereochemistry as R. The priority order was determined by atomic numbers and attached groups, with the first priority outranking the second due to the higher atomic number of the first C. The geometric fact confirms that the clockwise rotation (as per the lowest-priority group pointing away) defines the R configuration. Well done! 🌟
+
+[Charged zwitterion stereocenter (alanine)]
+  grading: {'correct_label': 'R', 'student_answer': 'R', 'is_correct': True}
+  used_fallback: False
+  checks: {'non_empty': True, 'not_truncated': True, 'states_correct_label': True, 'no_spatial_fabrication': True, 'passed': True}
+  text: The student correctly identified the configuration as R. The priority order follows CIP rules, with N (atomic number 7) outranking C (6) due to its higher atomic number. The geometric fact indicates that the clockwise rotation, with the lowest-priority group pointing away, confirms the R configuration. Well done! 🌟
+
+[Salt / spectator ion in the SMILES]
+  grading: {'correct_label': 'S', 'student_answer': 'R', 'is_correct': False}
+  used_fallback: False
+  checks: {'non_empty': True, 'not_truncated': True, 'states_correct_label': True, 'does_not_affirm_wrong_answer': True, 'no_spatial_fabrication': True, 'passed': True}
+  text: The student's answer was incorrect. The correct rotation direction is **S**, determined by the priority order (O > C > C > H) and the geometric fact that counterclockwise rotation defines S. The priority order was correctly identified, but the direction was misassigned, leading to the wrong conclusion. Keep practicing priority rules and geometric directions to improve accuracy!
+
+LLM explanation accepted on 6/8 cases that reached the LLM (3 cases correctly short-circuited before calling it).

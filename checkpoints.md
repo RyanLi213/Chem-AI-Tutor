@@ -40,12 +40,35 @@ wrong grade) whenever the SMILES being graded isn't in the exact order
 expected. Matters because DECIMER's predicted SMILES is not guaranteed to
 match the original ordering.
  
-**Fischer projections -- unconfirmed, high priority to test.** Could not
-confirm whether DECIMER supports this drawing convention at all. Fischer
-projections are a completely different visual convention (horizontal/
-vertical line meaning vs. wedge/dash) and are central to how stereochemistry
-is actually taught for sugars and amino acids -- exactly this app's
-subject matter. Untested so far.
+**Fischer projections (pure flat-line) -- confirmed gap, worse than
+expected.** Tested on D-glucose (4 stereocenters, plain-line cross layout,
+no wedges/dashes): DECIMER did not just drop the stereochemistry, it
+misread the basic connectivity. Predicted formula was C5H10O8 against the
+correct C6H12O6 -- missing a whole carbon, three backbone carbons predicted
+with two oxygens each instead of one, and a hallucinated tritium ([3H])
+label on the aldehyde hydrogen. Zero stereocenters captured. Separately
+confirmed (DECIMER's own documentation/community reports) that it *can*
+parse a Fischer-style cross layout when the bonds are drawn with explicit
+wedge/dash marks -- the failure is specific to pure flat-line notation, not
+the cross layout itself. No image-preprocessing fix exists for this: RDKit
+has no image-reading capability at all (it only ever generates images, never
+reads them), and the gap isn't image quality -- DECIMER appears to have
+never learned the flat-line convention, so no amount of cleanup/cropping
+changes that. Converting flat lines to wedge/dash programmatically before
+feeding DECIMER would require already knowing the correct stereochemistry,
+which is circular for any real (unknown-answer) input -- only useful as a
+sanity check on molecules whose answer is already known.
+ 
+**Future step (not started): a dedicated Fischer-projection parser that
+bypasses DECIMER entirely for this input type.** Detect the cross layout
+directly via image processing (locate the vertical/horizontal line
+intersection), OCR the four substituent labels at top/bottom/left/right,
+then hardcode the Fischer convention rule (vertical = away from viewer,
+horizontal = toward viewer) to deterministically derive stereochemistry --
+same "no model guessing, deterministic rule" philosophy as the RDKit
+validation layer, just applied to image layout instead of a SMILES string.
+This is a standalone computer-vision + OCR project, not a quick addition --
+sequence after the core tutoring layer (Milestone 3/5) is solid, not before.
  
 **Hand-drawn / photographed images -- untested.** All testing so far used
 clean, computer-generated images (the easiest case). DECIMER has a
