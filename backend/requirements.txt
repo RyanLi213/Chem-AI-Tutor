@@ -1,0 +1,7 @@
+rdkit==2026.3.4
+decimer==2.8.0
+tensorflow==2.20.0
+requests==2.34.2
+fastapi
+uvicorn
+python-multipart
