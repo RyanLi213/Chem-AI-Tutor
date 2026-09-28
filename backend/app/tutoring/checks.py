@@ -1,6 +1,7 @@
 import re
 
 from app.chemistry.cip import ROTATION_BY_LABEL
+from app.chemistry.validation import Substituent
 
 # Position/layout claims are never granted to the model in any form, so they're
 # always fabrication. "top"/"bottom"/"right" are phrase-gated because the bare
@@ -21,7 +22,10 @@ ALWAYS_BLOCKED_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-LABEL_PATTERN = re.compile(r"(?<![A-Za-z])[RS](?![A-Za-z])")
+LABEL_PATTERN = re.compile(r"(?<![A-Za-z])([RS])(?![A-Za-z])")
+# For molecules containing sulfur, a bare "S" may be the atom, not the label,
+# so only "(S)" or "S configuration" counts as a configuration label.
+STRICT_LABEL_PATTERN = re.compile(r"\(([RS])\)|(?<![A-Za-z])([RS])(?=[\s-]*[Cc]onfiguration)")
 DIRECTION_PATTERN = re.compile(r"\b(?:counter-?clockwise|clockwise)\b", re.IGNORECASE)
 # Split into clauses so a direction pairs with the label it's actually talking
 # about. Commas are deliberately not split on: "R, which is clockwise" is one
@@ -36,12 +40,17 @@ FABRICATION_FLAGS = [
 ]
 
 
-def rotation_claims_consistent(text: str, rotation: str | None) -> bool:
+def find_labels(text: str, strict: bool) -> list[tuple[int, str]]:
+    pattern = STRICT_LABEL_PATTERN if strict else LABEL_PATTERN
+    return [(m.start(), next(g for g in m.groups() if g)) for m in pattern.finditer(text)]
+
+
+def rotation_claims_consistent(text: str, rotation: str | None, strict_labels: bool = False) -> bool:
     # R is clockwise and S is counterclockwise by definition, so naming both
     # directions is fine ("your R is clockwise, the correct S is
     # counterclockwise"); pairing a direction with the wrong label is not.
     for clause in CLAUSE_SPLIT_PATTERN.split(text):
-        labels = [(m.start(), m.group()) for m in LABEL_PATTERN.finditer(clause)]
+        labels = find_labels(clause, strict_labels)
         for d in DIRECTION_PATTERN.finditer(clause):
             if rotation is None:
                 return False  # no direction was granted, so any claim is invented
@@ -56,25 +65,25 @@ def rotation_claims_consistent(text: str, rotation: str | None) -> bool:
     return True
 
 
-def check_explanation(grading_result: dict, response: dict, priorities: list[dict] | None = None, rotation: str | None = None) -> dict:
+def check_explanation(grading_result: dict, response: dict, priorities: list[Substituent] | None = None, rotation: str | None = None, strict_labels: bool = False) -> dict:
     text = response["text"]
     checks = {}
 
     checks["non_empty"] = bool(text.strip())
     checks["not_truncated"] = not response.get("truncated", False)
 
-    label_pattern = re.compile(rf"(?<![A-Za-z]){re.escape(grading_result['correct_label'])}(?![A-Za-z])")
-    checks["states_correct_label"] = bool(label_pattern.search(text))
+    stated = {label for _, label in find_labels(text, strict_labels)}
+    checks["states_correct_label"] = grading_result["correct_label"] in stated
 
     if not grading_result["is_correct"]:
         wrong_answer_as_correct = re.compile(
-            rf"correct answer is\s*\**{re.escape(grading_result['student_answer'])}\**",
+            rf"correct answer is\s*[*(]*{re.escape(grading_result['student_answer'])}[*)]*(?![A-Za-z])",
             re.IGNORECASE
         )
         checks["does_not_affirm_wrong_answer"] = not bool(wrong_answer_as_correct.search(text))
 
     directional_ok = not bool(ALWAYS_BLOCKED_PATTERN.search(text))
-    checks["no_spatial_fabrication"] = directional_ok and rotation_claims_consistent(text, rotation)
+    checks["no_spatial_fabrication"] = directional_ok and rotation_claims_consistent(text, rotation, strict_labels)
 
     if priorities is None:
         # No grounded substituent data was given -- any chemistry-reasoning

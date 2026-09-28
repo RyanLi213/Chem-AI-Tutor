@@ -1,12 +1,16 @@
-from app.chemistry.cip import build_priority_reason
+from app.chemistry.cip import build_priority_reason, element_name
+from app.chemistry.validation import Substituent
 
 
-def build_explanation_prompt(grading_result: dict, smiles: str, priorities: list[dict] | None = None, rotation: str | None = None) -> str:
+def build_explanation_prompt(grading_result: dict, smiles: str, priorities: list[Substituent] | None = None, rotation: str | None = None) -> str:
+    correct = f"({grading_result['correct_label']})"
+    student = f"({grading_result['student_answer']})"
+
     priority_block = ""
     if priorities:
         lines = "\n".join(
-            f"  {p['priority_rank']}. {p['atom_symbol']}"
-            f" (attached to: {', '.join(p['attached_to']) if p['attached_to'] else 'nothing else'})"
+            f"  {p.priority_rank}. {element_name(p.atom_symbol)}"
+            f" (attached to: {', '.join(element_name(a) for a in p.attached_to) or 'nothing else'})"
             for p in priorities
         )
         reason = build_priority_reason(priorities)
@@ -21,7 +25,7 @@ def build_explanation_prompt(grading_result: dict, smiles: str, priorities: list
         rotation_block = (
             "\n- Geometric fact (from CIP rules): with the lowest-priority group "
             f"pointing away from you, tracing priority 1 -> 2 -> 3 goes {rotation}, "
-            f"which is what defines this as {grading_result['correct_label']}."
+            f"which is what defines this as {correct}."
         )
 
     return f"""### Role
@@ -29,8 +33,8 @@ You are a friendly, encouraging organic chemistry tutor helping a student learn 
 
 ### Context
 - Molecule (SMILES): {smiles}
-- Student's answer: {grading_result['student_answer']}
-- Correct answer: {grading_result['correct_label']}
+- Student's answer: {student}
+- Correct answer: {correct}
 - Was the student correct?: {grading_result['is_correct']}{priority_block}{rotation_block}
 
 ### Task
@@ -46,6 +50,8 @@ do not compute or invent a new one.
   (left/right, top/bottom, "points toward", wedge/dash) that isn't given to you word-for-word.
 - If correct: briefly confirm it and give quick encouragement.
 - If incorrect: clearly state the correct answer — never just say "wrong" without including it.
+- Always write a configuration with parentheses, exactly as (R) or (S).
+- Refer to atoms by element name (oxygen, sulfur, carbon), never by chemical symbol.
 - Keep the tone encouraging, never harsh.
 
 ### Output format

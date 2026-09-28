@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field
+
 from rdkit import Chem
 from rdkit.Chem import FindMolChiralCenters, rdCIPLabeler
 
@@ -7,73 +9,75 @@ def canonicalize_smiles(smiles: str) -> str | None:
     return Chem.MolToSmiles(mol) if mol is not None else None
 
 
-def validate_molecule(smile_string):
-    if isinstance(smile_string, str):
-        smile_string = [smile_string]
+def molecule_contains_element(smiles: str, symbol: str) -> bool:
+    mol = Chem.MolFromSmiles(smiles) if smiles and smiles.strip() else None
+    return mol is not None and any(atom.GetSymbol() == symbol for atom in mol.GetAtoms())
 
-    results = []
 
-    for smi in smile_string:
-        if not smi or not smi.strip():
-            results.append({
-                "Valid": False,
-                "Number of stereocenters": 0,
-                "Stereocenters": [],
-                "Undefined stereocenters": []
-            })
+@dataclass
+class Substituent:
+    priority_rank: int  # 1 = highest priority
+    atom_symbol: str
+    attached_to: list[str]
+
+
+@dataclass
+class Stereocenter:
+    atom_index: int
+    label: str  # "R" or "S"
+    priorities: list[Substituent] = field(default_factory=list)
+
+
+@dataclass
+class MoleculeValidation:
+    valid: bool
+    stereocenters: list[Stereocenter] = field(default_factory=list)
+    undefined_stereocenters: list[int] = field(default_factory=list)
+
+    @property
+    def stereocenter_count(self) -> int:
+        return len(self.stereocenters)
+
+    def find_stereocenter(self, atom_index: int) -> Stereocenter | None:
+        return next((c for c in self.stereocenters if c.atom_index == atom_index), None)
+
+
+def validate_molecule(smiles: str) -> MoleculeValidation:
+    mol = Chem.MolFromSmiles(smiles) if smiles and smiles.strip() else None
+    if mol is None:
+        return MoleculeValidation(valid=False)
+
+    # Canonicalize before indexing so the same molecule written in a
+    # different atom order always gets the same stereocenter indices.
+    mol = Chem.MolFromSmiles(Chem.MolToSmiles(mol))
+
+    # Explicit Hs make all four real substituents visible for CIP ranking.
+    # AddHs keeps heavy-atom indices unchanged and only appends H indices.
+    mol = Chem.AddHs(mol)
+    Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
+    rdCIPLabeler.AssignCIPLabels(mol)
+
+    stereocenters = []
+    for atom in mol.GetAtoms():
+        if not atom.HasProp("_CIPCode"):
             continue
+        center = Stereocenter(atom_index=atom.GetIdx(), label=atom.GetProp("_CIPCode"))
 
-        mol = Chem.MolFromSmiles(smi)
-        if mol is None:
-            results.append({
-                "Valid": False,
-                "Number of stereocenters": 0,
-                "Stereocenters": [],
-                "Undefined stereocenters": []
-            })
-            continue
+        if atom.HasProp("_CIPNeighborOrder"):
+            order = list(atom.GetPropsAsDict()["_CIPNeighborOrder"])
+            for rank, nbr_idx in enumerate(order, start=1):
+                nbr = mol.GetAtomWithIdx(nbr_idx)
+                center.priorities.append(Substituent(
+                    priority_rank=rank,
+                    atom_symbol=nbr.GetSymbol(),
+                    attached_to=[n.GetSymbol() for n in nbr.GetNeighbors() if n.GetIdx() != atom.GetIdx()],
+                ))
 
-        # Canonicalize before indexing so the same molecule written in a
-        # different atom order always gets the same stereocenter indices.
-        canon_smiles = Chem.MolToSmiles(mol)
-        mol = Chem.MolFromSmiles(canon_smiles)
+        stereocenters.append(center)
 
-        # Explicit Hs make all four real substituents visible for CIP ranking.
-        # AddHs keeps heavy-atom indices unchanged and only appends H indices.
-        mol = Chem.AddHs(mol)
-        Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
-        rdCIPLabeler.AssignCIPLabels(mol)
-
-        stereocenters = []
-        for atom in mol.GetAtoms():
-            if atom.HasProp("_CIPCode"):
-                center = {
-                    "Atom index": atom.GetIdx(),
-                    "label": atom.GetProp("_CIPCode")
-                }
-
-                if atom.HasProp("_CIPNeighborOrder"):
-                    order = list(atom.GetPropsAsDict()["_CIPNeighborOrder"])
-                    priorities = []
-                    for rank, nbr_idx in enumerate(order, start=1):
-                        nbr = mol.GetAtomWithIdx(nbr_idx)
-                        attached = [n.GetSymbol() for n in nbr.GetNeighbors() if n.GetIdx() != atom.GetIdx()]
-                        priorities.append({
-                            "priority_rank": rank,  # 1 = highest priority
-                            "atom_symbol": nbr.GetSymbol(),
-                            "attached_to": attached,
-                        })
-                    center["Priorities"] = priorities
-
-                stereocenters.append(center)
-
-        all_centers = FindMolChiralCenters(mol, includeUnassigned=True, useLegacyImplementation=False)
-        undefined_stereocenters = [idx for idx, label in all_centers if label == "?"]
-
-        results.append({
-            "Valid": True,
-            "Number of stereocenters": len(stereocenters),
-            "Stereocenters": stereocenters,
-            "Undefined stereocenters": undefined_stereocenters
-        })
-    return results
+    all_centers = FindMolChiralCenters(mol, includeUnassigned=True, useLegacyImplementation=False)
+    return MoleculeValidation(
+        valid=True,
+        stereocenters=stereocenters,
+        undefined_stereocenters=[idx for idx, label in all_centers if label == "?"],
+    )

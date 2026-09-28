@@ -133,8 +133,12 @@ done and Milestone 5 is far along).
   both directions. It splits the text into clauses, pairs each direction with
   the nearest R/S label, and rejects only impossible pairings (S+clockwise,
   R+counterclockwise), or an unlabeled direction that differs from the granted
-  one. The notebook's `check_explanation` still has the old rule. Known edge:
-  a sulfur atom written as "S" near a direction word would be read as a label.
+  one. The notebook's `check_explanation` still has the old rule.
+- **Sulfur "S" vs label "S": closed in the backend.** For molecules containing
+  sulfur, the check only counts "(S)"/"(R)" or "S configuration" as labels;
+  the prompt uses element names instead of symbols and asks for (R)/(S).
+  Non-sulfur molecules still accept bare R/S. Same collision still open for
+  "R group" (generic substituent), which affects every molecule.
 - **Tie-break reasoning is one level deep.** `build_priority_reason` only looks
   at the atoms attached to each group. Ties that need deeper CIP exploration
   (e.g. propyl vs ethyl) can yield a shallow or uninformative reason, which the
@@ -158,25 +162,15 @@ done and Milestone 5 is far along).
 - The Fischer test cell in the notebook reads an absolute path in Downloads;
   move that image into `notebooks/` and use a relative path.
 
-## Backend cleanup still pending (user has seen these, not yet decided)
+## Backend `validate_molecule` differs from the notebook's
 
-The pipeline now also lives in `backend/app/` (FastAPI). Two cleanups to
-`validate_molecule` (`backend/app/chemistry/validation.py`), deliberately left
-as-is until the user decides:
-
-1. **Dict keys have spaces/capitals** (`"Atom index"`, `"Number of
-   stereocenters"`). Typos only fail at runtime, the editor can't autocomplete
-   or catch them, and the JSON would force the phone app to write
-   `data["Atom index"]`. Fix: return a small typed object (dataclass) so it's
-   `result.atom_index`.
-2. **It accepts a string or a list and always returns a list**, so every
-   caller must remember `[0]` (the grader does `validate_molecule(...)[0]`);
-   forgetting it gives a confusing error elsewhere. Fix: take one SMILES,
-   return one result, and let callers loop.
-
-Neither is a bug today; both are cheapest to fix now, while only a few backend
-modules call `validate_molecule`. The notebook keeps its own copy, so changing
-the backend version doesn't break it.
+The pipeline also lives in `backend/app/` (FastAPI). The backend
+`validate_molecule` takes ONE SMILES and returns a typed `MoleculeValidation`
+(`.valid`, `.stereocenters`, `.undefined_stereocenters`, `.stereocenter_count`,
+`.find_stereocenter(i)`); each `Stereocenter` has `.atom_index`, `.label`,
+`.priorities` (list of `Substituent`: `.priority_rank`, `.atom_symbol`,
+`.attached_to`). No list input, no `[0]`, no spaced dict keys. The notebook
+still uses the old dict version, so code copied between them needs converting.
 
 ## What to help with next, in likely priority order
 

@@ -1,49 +1,57 @@
 from rdkit import Chem
 
-from app.chemistry.validation import validate_molecule
+from app.chemistry.validation import Substituent, validate_molecule
 
 
-def get_substituent_priorities(smiles: str, atom_index: int) -> list[dict]:
-    result = validate_molecule(smiles)[0]
-    for center in result["Stereocenters"]:
-        if center["Atom index"] == atom_index:
-            return center.get("Priorities", [])
-    return []
+def get_substituent_priorities(smiles: str, atom_index: int) -> list[Substituent]:
+    center = validate_molecule(smiles).find_stereocenter(atom_index)
+    return center.priorities if center else []
 
 
 def _atomic_number(symbol: str) -> int:
     return Chem.GetPeriodicTable().GetAtomicNumber(symbol)
 
 
-def build_priority_reason(priorities: list[dict]) -> str:
+def element_name(symbol: str) -> str:
+    # Explanations use names, not symbols: the symbol "S" (sulfur) is
+    # indistinguishable from the configuration label S in the LLM's text.
+    return Chem.GetPeriodicTable().GetElementName(_atomic_number(symbol)).lower()
+
+
+def build_priority_reason(priorities: list[Substituent]) -> str:
     """Deterministic, computed reason -- not something the LLM decides."""
     if len(priorities) < 2:
         return ""
 
     top, second = priorities[0], priorities[1]
-    top_num = _atomic_number(top["atom_symbol"])
-    second_num = _atomic_number(second["atom_symbol"])
+    top_num = _atomic_number(top.atom_symbol)
+    second_num = _atomic_number(second.atom_symbol)
+
+    top_name = element_name(top.atom_symbol)
+    second_name = element_name(second.atom_symbol)
 
     if top_num != second_num:
         return (
-            f"{top['atom_symbol']} (atomic number {top_num}) outranks "
-            f"{second['atom_symbol']} (atomic number {second_num}) because it has "
+            f"{top_name} (atomic number {top_num}) outranks "
+            f"{second_name} (atomic number {second_num}) because it has "
             f"the higher atomic number."
         )
 
     # Same atom, tied -- CIP breaks the tie using what each is attached to next.
     # Only looks one shell deep; deeper ties can produce a shallow reason.
-    def best_attached_number(p):
-        nums = [_atomic_number(a) for a in p["attached_to"]]
+    def best_attached_number(p: Substituent) -> int:
+        nums = [_atomic_number(a) for a in p.attached_to]
         return max(nums) if nums else 0
 
     top_best = best_attached_number(top)
     second_best = best_attached_number(second)
+    top_attached = ", ".join(element_name(a) for a in top.attached_to) or "nothing else"
+    second_attached = ", ".join(element_name(a) for a in second.attached_to) or "nothing else"
     return (
-        f"{top['atom_symbol']} and {second['atom_symbol']} tie on atomic number, "
-        f"so the tie is broken by what they're attached to: the group attached to "
-        f"{top['attached_to']} (highest atomic number {top_best}) outranks the one "
-        f"attached to {second['attached_to']} (highest atomic number {second_best})."
+        f"Both are {top_name}, so they tie on atomic number and the tie is broken by "
+        f"what they're attached to: the {top_name} attached to {top_attached} "
+        f"(highest atomic number {top_best}) outranks the {second_name} attached to "
+        f"{second_attached} (highest atomic number {second_best})."
     )
 
 

@@ -1,6 +1,7 @@
 import requests
 
 from app.chemistry.cip import describe_rotation, get_substituent_priorities
+from app.chemistry.validation import molecule_contains_element
 from app.tutoring.checks import check_explanation
 from app.tutoring.llm_client import generate_completion
 from app.tutoring.prompts import build_explanation_prompt
@@ -40,7 +41,10 @@ def get_safe_explanation(grading_result: dict, smiles: str, atom_index: int | No
             "error": str(e),
         }
 
-    checks = check_explanation(grading_result, response, priorities, rotation)
+    checks = check_explanation(
+        grading_result, response, priorities, rotation,
+        strict_labels=molecule_contains_element(smiles, "S"),
+    )
 
     return {
         "text": response["text"] if checks["passed"] else fallback_text,

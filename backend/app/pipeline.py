@@ -2,7 +2,7 @@ from app.chemistry.rendering import draw_stereocenters_svg
 from app.chemistry.validation import canonicalize_smiles, validate_molecule
 from app.grading.stereocenter import grade_stereocenter_answer
 from app.ocsr.decimer_client import predict_smiles_from_image
-from backend.app.tutoring.safe_explanation import get_safe_explanation
+from app.tutoring.safe_explanation import get_safe_explanation
 
 
 def analyze_smiles(smiles: str) -> dict:
@@ -10,14 +10,14 @@ def analyze_smiles(smiles: str) -> dict:
     if canonical is None:
         return {"valid": False, "smiles": smiles, "stereocenters": [], "undefined_stereocenters": [], "svg": None}
 
-    validation = validate_molecule(canonical)[0]
+    validation = validate_molecule(canonical)
     # Only indices go to the client -- the R/S labels are the answers.
-    stereocenter_indices = [c["Atom index"] for c in validation["Stereocenters"]]
+    stereocenter_indices = [c.atom_index for c in validation.stereocenters]
     return {
         "valid": True,
         "smiles": canonical,
         "stereocenters": stereocenter_indices,
-        "undefined_stereocenters": validation["Undefined stereocenters"],
+        "undefined_stereocenters": validation.undefined_stereocenters,
         "svg": draw_stereocenters_svg(canonical, stereocenter_indices),
     }
 
