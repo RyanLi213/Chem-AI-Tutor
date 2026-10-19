@@ -1,6 +1,6 @@
 import requests
 
-from app.chemistry.cip import describe_rotation, get_substituent_priorities
+from app.chemistry.cip import build_priority_reason, describe_rotation, get_substituent_priorities
 from app.chemistry.validation import molecule_contains_element
 from app.tutoring.checks import check_explanation
 from app.tutoring.llm_client import generate_completion
@@ -26,8 +26,9 @@ def get_safe_explanation(grading_result: dict, smiles: str, atom_index: int | No
     priorities = get_substituent_priorities(smiles, atom_index) if atom_index is not None else None
     priorities = priorities or None  # treat an empty list the same as "no data available"
     rotation = describe_rotation(label) if priorities else None
+    reason = build_priority_reason(smiles, atom_index) if priorities else ""
 
-    prompt = build_explanation_prompt(grading_result, smiles, priorities, rotation)
+    prompt = build_explanation_prompt(grading_result, smiles, priorities, rotation, reason)
 
     try:
         response = generate_completion(prompt)

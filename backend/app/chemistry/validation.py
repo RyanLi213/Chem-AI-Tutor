@@ -42,10 +42,11 @@ class MoleculeValidation:
         return next((c for c in self.stereocenters if c.atom_index == atom_index), None)
 
 
-def validate_molecule(smiles: str) -> MoleculeValidation:
+def prepare_cip_mol(smiles: str) -> Chem.Mol | None:
+    """The one place atom numbering is decided; everything that indexes atoms uses this."""
     mol = Chem.MolFromSmiles(smiles) if smiles and smiles.strip() else None
     if mol is None:
-        return MoleculeValidation(valid=False)
+        return None
 
     # Canonicalize before indexing so the same molecule written in a
     # different atom order always gets the same stereocenter indices.
@@ -56,6 +57,13 @@ def validate_molecule(smiles: str) -> MoleculeValidation:
     mol = Chem.AddHs(mol)
     Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
     rdCIPLabeler.AssignCIPLabels(mol)
+    return mol
+
+
+def validate_molecule(smiles: str) -> MoleculeValidation:
+    mol = prepare_cip_mol(smiles)
+    if mol is None:
+        return MoleculeValidation(valid=False)
 
     stereocenters = []
     for atom in mol.GetAtoms():

@@ -1,8 +1,8 @@
-from app.chemistry.cip import build_priority_reason, element_name
+from app.chemistry.cip import element_name
 from app.chemistry.validation import Substituent
 
 
-def build_explanation_prompt(grading_result: dict, smiles: str, priorities: list[Substituent] | None = None, rotation: str | None = None) -> str:
+def build_explanation_prompt(grading_result: dict, smiles: str, priorities: list[Substituent] | None = None, rotation: str | None = None, reason: str = "") -> str:
     correct = f"({grading_result['correct_label']})"
     student = f"({grading_result['student_answer']})"
 
@@ -13,12 +13,12 @@ def build_explanation_prompt(grading_result: dict, smiles: str, priorities: list
             f" (attached to: {', '.join(element_name(a) for a in p.attached_to) or 'nothing else'})"
             for p in priorities
         )
-        reason = build_priority_reason(priorities)
         priority_block = (
             "\n- Substituent priority order at this stereocenter, highest to lowest "
             f"(from CIP rules):\n{lines}"
-            f"\n- Why the top group outranks the next one: {reason}"
         )
+        if reason:
+            priority_block += f"\n- Why the top group outranks the next one: {reason}"
 
     rotation_block = ""
     if rotation:
